@@ -1,0 +1,37 @@
+# Node
+node_modules/
+.next/
+out/
+dist/
+build/
+.expo/
+coverage/
+
+# Env y secretos - NUNCA subir a GitHub
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Vercel / Netlify
+.vercel
+.netlify
+
+# Python (para backend_projects / automation_ai_projects)
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# n8n / datos locales
+*.sqlite
+data/
