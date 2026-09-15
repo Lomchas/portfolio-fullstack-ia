@@ -7,6 +7,14 @@ import { formatDate, formatMoney } from "../lib/format";
 import { Btn, Card, Select } from "./ui";
 import AiPanel from "./AiPanel";
 import ActivityForm from "./ActivityForm";
+import type { LeadStatus } from "../lib/types";
+
+const STATUS_LABEL: Record<LeadStatus, string> = {
+  open: "Abierto",
+  won: "Ganado",
+  lost: "Perdido",
+  archived: "Archivado"
+};
 
 export default function LeadDetail({ leadId, onBack }: { leadId: string; onBack: () => void }) {
   const { state, dispatch } = useCrm();
@@ -28,13 +36,30 @@ export default function LeadDetail({ leadId, onBack }: { leadId: string; onBack:
           <Select value={lead.ownerId} onChange={(e) => dispatch({ type: "UPDATE_LEAD", lead: { ...lead, ownerId: e.target.value, updatedAt: new Date().toISOString() } })} className="!w-48">
             {state.users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
           </Select>
-          <Select value={lead.status} onChange={(e) => dispatch({ type: "UPDATE_LEAD", lead: { ...lead, status: e.target.value as never, updatedAt: new Date().toISOString() } })} className="!w-36">
-            <option value="open">open</option><option value="won">won</option><option value="lost">lost</option><option value="archived">archived</option>
+          <Select
+            value={lead.status}
+            onChange={(e) => {
+              const status = e.target.value as LeadStatus;
+              let lostReason: string | undefined;
+              if (status === "lost") {
+                const opts = state.settings.lossReasons;
+                const pick = prompt(`Motivo de pérdida (${opts.join(", ")})`, opts[0] ?? "Precio");
+                lostReason = pick?.trim() || opts[0] || "Sin especificar";
+              }
+              dispatch({ type: "UPDATE_LEAD", lead: { ...lead, status, lostReason, updatedAt: new Date().toISOString() } });
+            }}
+            className="!w-36"
+          >
+            <option value="open">{STATUS_LABEL.open}</option>
+            <option value="won">{STATUS_LABEL.won}</option>
+            <option value="lost">{STATUS_LABEL.lost}</option>
+            <option value="archived">{STATUS_LABEL.archived}</option>
           </Select>
           <Btn variant="ghost" onClick={() => { if (confirm("¿Eliminar lead?")) { dispatch({ type: "DELETE_LEAD", id: lead.id }); onBack(); } }}>
             <span className="inline-flex items-center gap-1 text-red-300"><Trash2 size={14} /> Eliminar</span>
           </Btn>
         </div>
+        {lead.lostReason && <p className="mt-3 text-xs text-red-300">Motivo de pérdida: {lead.lostReason}</p>}
         <h3 className="mt-5 font-semibold">Timeline ({acts.length})</h3>
         <div className="mt-2 space-y-2">
           {acts.map((a) => (
@@ -50,7 +75,7 @@ export default function LeadDetail({ leadId, onBack }: { leadId: string; onBack:
         </div>
         <ActivityForm leadId={lead.id} />
       </Card>
-      <AiPanel lead={lead} />
+      <AiPanel key={lead.id} lead={lead} />
     </div>
   );
 }

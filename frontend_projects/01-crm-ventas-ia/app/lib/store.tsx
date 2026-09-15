@@ -46,6 +46,30 @@ function initialState(): CrmState {
   };
 }
 
+function sanitize(raw: unknown): CrmState | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Partial<CrmState>;
+  if (!Array.isArray(r.leads) || !Array.isArray(r.pipelines) || !Array.isArray(r.users)) return null;
+  const base = initialState();
+  const users = r.users.length ? r.users : base.users;
+  const pipelines = r.pipelines.length ? r.pipelines : base.pipelines;
+  const settings: AppSettings = { ...base.settings, ...(r.settings ?? {}) };
+  if (!pipelines.some((p) => p.id === settings.activePipelineId)) settings.activePipelineId = pipelines[0].id;
+  if (!users.some((u) => u.id === settings.activeUserId)) {
+    settings.activeUserId = users[0].id;
+    settings.activeRole = users[0].role;
+  }
+  return {
+    users,
+    pipelines,
+    leads: r.leads,
+    activities: Array.isArray(r.activities) ? r.activities : [],
+    quotes: Array.isArray(r.quotes) ? r.quotes : [],
+    settings,
+    hydrated: true
+  };
+}
+
 function reducer(state: CrmState, action: Action): CrmState {
   switch (action.type) {
     case "HYDRATE":
@@ -59,13 +83,16 @@ function reducer(state: CrmState, action: Action): CrmState {
     case "MOVE_LEAD": {
       const lead = state.leads.find((l) => l.id === action.id);
       if (!lead) return state;
+      const allStages = state.pipelines.flatMap((p) => p.stages);
+      const from = allStages.find((s) => s.id === lead.stageId);
+      const to = allStages.find((s) => s.id === action.stageId);
       const updated: Lead = { ...lead, stageId: action.stageId, updatedAt: new Date().toISOString() };
       const autoActivity: Activity = {
-        id: `a-${Date.now()}`,
+        id: uid("a"),
         leadId: lead.id,
         type: "nota",
         title: "Cambio de etapa",
-        detail: `Movido a etapa ${action.stageId}`,
+        detail: `${from?.name ?? "Sin etapa"} → ${to?.name ?? action.stageId}`,
         date: new Date().toISOString(),
         done: true,
         createdBy: state.settings.activeUserId
@@ -103,12 +130,8 @@ export function CrmProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as CrmState;
-        dispatch({ type: "HYDRATE", state: { ...parsed, hydrated: true } });
-      } else {
-        dispatch({ type: "HYDRATE", state: { ...initialState(), hydrated: true } });
-      }
+      const restored = raw ? sanitize(JSON.parse(raw)) : null;
+      dispatch({ type: "HYDRATE", state: restored ?? { ...initialState(), hydrated: true } });
     } catch {
       dispatch({ type: "HYDRATE", state: { ...initialState(), hydrated: true } });
     }

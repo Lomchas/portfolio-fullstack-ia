@@ -7,6 +7,12 @@ build/
 .expo/
 coverage/
 
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Logs
+*.log
+
 # Env y secretos - NUNCA subir a GitHub
 .env
 .env.*

@@ -6,6 +6,14 @@ import { formatDate, formatMoney } from "../lib/format";
 import { leadsToCSV, downloadText } from "../lib/csv";
 import { Badge, Btn, Input, ScoreBadge, Select } from "../components/ui";
 import LeadDetail from "../components/LeadDetail";
+import type { LeadStatus } from "../lib/types";
+
+const STATUS_LABEL: Record<LeadStatus, string> = {
+  open: "Abierto",
+  won: "Ganado",
+  lost: "Perdido",
+  archived: "Archivado"
+};
 
 export default function LeadsPage() {
   const { state } = useCrm();
@@ -57,10 +65,10 @@ export default function LeadsPage() {
               return (
                 <tr key={l.id} onClick={() => setSel(l.id)} className="cursor-pointer border-t border-white/5 hover:bg-white/5">
                   <td className="p-3"><p className="font-semibold">{l.company}</p><p className="text-xs text-slate-400">{l.name}</p></td>
-                  <td className="p-3 font-bold text-sky-300">{formatMoney(l.value)}</td>
+                  <td className="p-3 font-bold text-sky-300">{formatMoney(l.value, l.currency)}</td>
                   <td className="p-3"><ScoreBadge score={score} /></td>
                   <td className="p-3 text-xs">{formatDate(l.expectedClose)}</td>
-                  <td className="p-3"><Badge className="bg-white/10">{l.status}</Badge></td>
+                  <td className="p-3"><Badge className="bg-white/10">{STATUS_LABEL[l.status]}</Badge></td>
                 </tr>
               );
             })}

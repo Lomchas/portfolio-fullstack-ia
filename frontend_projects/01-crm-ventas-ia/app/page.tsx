@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { DndContext, DragEndEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import { Plus, Search } from "lucide-react";
 import { useCrm, uid } from "./lib/store";
@@ -38,7 +38,7 @@ function DraggableCard({ lead, onOpen }: { lead: Lead; onOpen: (l: Lead) => void
   );
 }
 
-function Column({ stageId, title, badge, children, count, total }: { stageId: string; title: string; badge: string; children: React.ReactNode; count: number; total: number }) {
+function Column({ stageId, title, badge, children, count, total, currency }: { stageId: string; title: string; badge: string; children: React.ReactNode; count: number; total: number; currency: string }) {
   const { setNodeRef, isOver } = useDroppable({ id: stageId });
   return (
     <div ref={setNodeRef} className={`rounded-2xl border p-3 transition ${isOver ? "border-sky-400 bg-sky-500/10" : "border-white/10 bg-white/5"}`}>
@@ -46,7 +46,7 @@ function Column({ stageId, title, badge, children, count, total }: { stageId: st
         <h2 className="text-sm font-semibold">{title}</h2>
         <Badge className={badge}>{count}</Badge>
       </div>
-      <p className="mt-1 text-xs text-slate-400">{formatMoney(total)}</p>
+      <p className="mt-1 text-xs text-slate-400">{formatMoney(total, currency)}</p>
       <div className="mt-3 space-y-2">{children}</div>
     </div>
   );
@@ -58,8 +58,10 @@ export default function Page() {
   const [q, setQ] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Lead | null>(null);
+  const lastDragEnd = useRef(0);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const pipeline = state.pipelines.find((p) => p.id === state.settings.activePipelineId);
+  const orderedStages = useMemo(() => (pipeline ? [...pipeline.stages].sort((a, b) => a.order - b.order) : []), [pipeline]);
 
   const visibleLeads = useMemo(() => {
     let list = state.leads.filter((l) => l.pipelineId === state.settings.activePipelineId && l.status === "open");
@@ -71,8 +73,15 @@ export default function Page() {
     return list;
   }, [state.leads, state.settings, q]);
 
+  function openLead(lead: Lead) {
+    if (Date.now() - lastDragEnd.current < 250) return; // evita abrir el modal justo después de arrastrar
+    setEditing(lead);
+    setModalOpen(true);
+  }
+
   function onDragEnd(e: DragEndEvent) {
     const { active, over } = e;
+    lastDragEnd.current = Date.now();
     if (!over) return;
     const leadId = String(active.id);
     const stageId = String(over.id);
@@ -103,13 +112,13 @@ export default function Page() {
 
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
         <section className="mt-4 grid gap-3 xl:grid-cols-4 md:grid-cols-2">
-          {pipeline.stages.sort((a, b) => a.order - b.order).map((st) => {
+          {orderedStages.map((st) => {
             const inStage = visibleLeads.filter((l) => l.stageId === st.id);
             const tot = inStage.reduce((s, l) => s + l.value, 0);
             return (
-              <Column key={st.id} stageId={st.id} title={st.name} badge={st.color} count={inStage.length} total={tot}>
+              <Column key={st.id} stageId={st.id} title={st.name} badge={st.color} count={inStage.length} total={tot} currency={state.settings.currency}>
                 {inStage.map((lead) => (
-                  <DraggableCard key={lead.id} lead={lead} onOpen={(l) => { setEditing(l); setModalOpen(true); }} />
+                  <DraggableCard key={lead.id} lead={lead} onOpen={openLead} />
                 ))}
                 {inStage.length === 0 && <p className="rounded-xl border border-dashed border-white/10 p-4 text-center text-xs text-slate-500">Suelta aquí</p>}
               </Column>

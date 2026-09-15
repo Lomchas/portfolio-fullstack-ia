@@ -43,7 +43,7 @@ export function QuoteEditor({ quote, onBack }: { quote: Quote; onBack: () => voi
       </Card>
       <Card>
         <p className="font-semibold">Total</p>
-        <p className="mt-2 text-3xl font-bold text-sky-300">{formatMoney(quoteTotal(q))}</p>
+        <p className="mt-2 text-3xl font-bold text-sky-300">{formatMoney(quoteTotal(q), state.settings.currency)}</p>
         <Badge className="mt-2 bg-white/10">{q.status}</Badge>
         {lead && <p className="mt-3 text-xs text-slate-400">Cliente: {lead.company}</p>}
       </Card>
